@@ -294,58 +294,6 @@ export function tokenize(incoming: string): IToken[] {
     return stack;
 }
 
-
-// console.log([buffer]);
-// console.log([tagBuffer]);
-// console.log(stack);
-// console.log(stack.filter(x => x.type === 'text').map(x => x.content).join(''));
-
-// console.log(stack[0]);
-// const testLoc = (index) => s.substring(stack[index].loc.start, stack[index].loc.end);
-// // console.log([s.substring(stack[14].loc.start, stack[14].loc.end)]);
-//
-// const out = stack.reduce(function (string, item) {
-//     if (item.type === NodeTypes.text) {
-//         console.log('TEXT', [item.content]);
-//         return string + item.content;
-//     }
-//     if (item.type === NodeTypes.tagName) {
-//         if (item.content[0] === '#') {
-//             console.log('OPEN Block', item.content);
-//         } else if (item.content[0] === '/') {
-//             console.log('CLOSE Block', item.content);
-//         } else {
-//             console.log('VAR lookup', item.content);
-//         }
-//     }
-//
-//     if (item.type === NodeTypes.assignParam) {
-//         console.log('  PARAM (assign)', item.content);
-//     }
-//
-//     if (item.type === NodeTypes.unquotedParam) {
-//         console.log('  PARAM (unquoted)', item.content);
-//     }
-//
-//     if (item.type === NodeTypes.param) {
-//         console.log('  PARAM (single)', [item.content]);
-//     }
-//
-//     if (item.type === NodeTypes.quoteParam) {
-//         console.log('    Quote param', [item.content]);
-//     }
-//
-//     if (item.type === NodeTypes.closeTag) {
-//         // console.log('Tag Closed', item.content);
-//     }
-//
-//     return string;
-//
-// }, '');
-
-// console.log(out);
-// console.log(stack);
-
 function isNewline (c) {
     return /\n/.test(c);
 }
