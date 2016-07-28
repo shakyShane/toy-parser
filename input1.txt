@@ -1,0 +1,7 @@
+<ul>
+    {{#tags}}
+    {{this|omg}}
+    {{/tags}}
+    {{@inc icon="{{this.name}}-takeanother"}}
+    {{/each}}
+</ul>

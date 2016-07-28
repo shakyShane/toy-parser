@@ -1,0 +1,26 @@
+{
+  "name": "@shakyshane/hb",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shakyShane/toy-parser.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "files": [
+    "dist"
+  ],
+  "bugs": {
+    "url": "https://github.com/shakyShane/toy-parser/issues"
+  },
+  "homepage": "https://github.com/shakyShane/toy-parser#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.5.3"
+  }
+}
