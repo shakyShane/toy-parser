@@ -31,6 +31,8 @@ export enum TokenTypes {
 export interface ILoc {
     start: number
     end: number
+    column: number
+    line: number
 }
 
 export interface IToken {
@@ -69,7 +71,8 @@ export function tokenize(incoming: string): IToken[] {
     var len = incoming.length;
     var c : string;
 
-    var line = 0;
+    var line      = 0;
+    var column    = 0;
     var pos       = 0;
     var emit      = true;
     var stack: Array<IToken> = [];
@@ -84,12 +87,12 @@ export function tokenize(incoming: string): IToken[] {
         tagName: '',
         params: [],
         body: [],
-        loc: {start: startPos, end: 0}
+        loc: {start: startPos, end: 0, column, line}
     });
     const generateParam = (): IParam => ({
         key: '',
         value: 'string',
-        loc: {start: 0, end: 0}
+        loc: {start: 0, end: 0, column: column, line: line}
     });
 
     var currentTag   = generateTag();
@@ -100,12 +103,14 @@ export function tokenize(incoming: string): IToken[] {
         stackIndex ++;
         stack.push(node);
     };
-    const loc = (start, end) => ({start, end});
+
+    const loc = (start, end, _column = column) => ({start, end, column: _column, line});
 
     while (pos < len) {
         c    = incoming.charAt(pos);
         emit = !isTagOnlyLine(line);
 
+        // console.log(column, [c]);
         // console.log([c]);
 
         switch (STATE) {
@@ -120,9 +125,9 @@ export function tokenize(incoming: string): IToken[] {
                     STATE = State.OPEN1;
                     if (pos > lastEmitPos) {
                         const diff = pos - lastEmitPos;
-                        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos - (diff - 1))});
+                        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos - (diff - 1), locStart)});
                     } else {
-                        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos)});
+                        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos, locStart)});
                     }
 
                     locStart = pos;
@@ -161,7 +166,8 @@ export function tokenize(incoming: string): IToken[] {
                     // push({type: TokenTypes.openTag, content: '{{', loc: loc(pos-1, pos+1)});
                     locStart = pos + 1;
                     STATE = State.INSIDE_TAG_NAME;
-                    currentTag = generateTag(pos - 2);
+                    currentTag = generateTag(pos - 1);
+                    currentTag.loc.column = column - 1; // track back 1 char
                     buffer = ''; // empty the text buffer
                 }
                 break;
@@ -282,6 +288,9 @@ export function tokenize(incoming: string): IToken[] {
 
         if (isNewline(c)) {
             line++;
+            column = 0;
+        } else {
+            column++;
         }
 
         pos++;
