@@ -19,7 +19,6 @@ enum State {
 export enum TokenTypes {
     text = <any>'text',
     openTag = <any>'openTag',
-    mustache = <any>'mustache',
     closeTag = <any>'closeTag',
     tagName = <any>'tagName',
     assignParam = <any>'assignParam',
@@ -28,29 +27,20 @@ export enum TokenTypes {
     unquotedParam = <any>'unquotedParam'
 }
 
-export interface ILoc {
-    start: number
-    end: number
-    column: number
-    line: number
-}
-
 export interface IToken {
     type: TokenTypes,
     content: string,
-    loc: ILoc
+    loc: {
+        start: number
+        end: number
+    }
 }
 
-export interface ITag {
-    tagName: string
-    params: IParam[]
-    body: ITag[]
-    loc: ILoc
-}
-export interface IParam {
-    key?:  string
-    value: string
-    loc:   ILoc
+interface ILoc {
+    start: number;
+    end: number;
+    column: number;
+    line: number;
 }
 
 export function tokenize(incoming: string): IToken[] {
@@ -74,44 +64,24 @@ export function tokenize(incoming: string): IToken[] {
     var line      = 0;
     var column    = 0;
     var pos       = 0;
-    var emit      = true;
+    var canEmit      = true;
     var stack: Array<IToken> = [];
-    var buffer    = '';
     var tagBuffer = '';
     var STATE: State = State.TEXT;
-    var locStart  = 0;
+    var locStart     = 0;
     var lastEmitPos  = 0;
-    var stackIndex = 0;
+    var stackIndex   = 0;
+    var buffer    = '';
 
-    const generateTag = (startPos: number = 0): ITag => ({
-        tagName: '',
-        params: [],
-        body: [],
-        loc: {start: startPos, end: 0, column, line}
-    });
-    const generateParam = (): IParam => ({
-        key: '',
-        value: 'string',
-        loc: {start: 0, end: 0, column: column, line: line}
-    });
-
-    var currentTag   = generateTag();
-    var currentParam = generateParam();
-
-    const push = (node) => {
-        node.index = stackIndex;
-        stackIndex ++;
-        stack.push(node);
+    const emit = (type: TokenTypes, content: string, loc: ILoc) => {
+        stack.push({type, content, loc});
     };
 
-    const loc = (start, end, _column = column) => ({start, end, column: _column, line});
+    const loc = (start, end, _column = column, _line = line): ILoc => ({start, end, column: _column, line: _line});
 
     while (pos < len) {
         c    = incoming.charAt(pos);
-        emit = !isTagOnlyLine(line);
-
-        // console.log(column, [c]);
-        // console.log([c]);
+        canEmit = !isTagOnlyLine(line);
 
         switch (STATE) {
             case State.TEXT:
@@ -122,22 +92,29 @@ export function tokenize(incoming: string): IToken[] {
                     }
                 }
                 if (c === "{") {
+
                     STATE = State.OPEN1;
-                    if (pos > lastEmitPos) {
-                        const diff = pos - lastEmitPos;
-                        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos - (diff - 1), locStart)});
-                    } else {
-                        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos, locStart)});
+
+                    if (buffer) {
+                        emit(TokenTypes.text, buffer, loc(locStart, pos, locStart));
                     }
 
                     locStart = pos;
                     buffer = "";
                 } else {
-                    if (emit) {
-                        buffer += c;
+                    if (buffer && isNewline(c)) {
+                        if (isTagOnlyLine(line + 1) && canEmit) {
+                            buffer += c;
+                            emit(TokenTypes.text, buffer, loc(locStart, pos, locStart));
+                            buffer = '';
+                        }
                     } else {
-                        if (isNewline(c) && !emit) {
-                            locStart = pos + 1;
+                        if (canEmit) {
+                            buffer += c;
+                        } else {
+                            if (isNewline(c) && !canEmit) {
+                                locStart = pos + 1;
+                            }
                         }
                     }
                 }
@@ -146,7 +123,7 @@ export function tokenize(incoming: string): IToken[] {
                 if (c === "}") {
                     buffer += c;
                     STATE = State.TEXT;
-                    push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos + 1)});
+                    emit(TokenTypes.text, buffer, loc(locStart, pos + 1));
                     buffer = '';
                 }
                 break;
@@ -163,26 +140,22 @@ export function tokenize(incoming: string): IToken[] {
                 break;
             case State.OPEN1 :
                 if (c === '{') {
-                    // push({type: TokenTypes.openTag, content: '{{', loc: loc(pos-1, pos+1)});
+                    emit(TokenTypes.openTag, '{{', loc(pos-1, pos+1, column-1));
                     locStart = pos + 1;
                     STATE = State.INSIDE_TAG_NAME;
-                    currentTag = generateTag(pos - 1);
-                    currentTag.loc.column = column - 1; // track back 1 char
                     buffer = ''; // empty the text buffer
                 }
                 break;
             case State.INSIDE_TAG_NAME:
                 if (c === ' ') { // name ended 1
-                    currentTag.tagName = tagBuffer;
-                    // push({type: TokenTypes.tagName, content: tagBuffer, loc: loc(locStart, pos)});
+                    emit(TokenTypes.tagName, tagBuffer, loc(locStart, pos));
                     locStart = pos;
                     tagBuffer = '';
                     STATE = State.INSIDE_TAG_TEXT;
                 } else if (c === '}') { // name ended 2
-                    currentTag.tagName = tagBuffer;
-                    // push({type: TokenTypes.tagName, content: tagBuffer, loc: loc(locStart, pos)});
-                    tagBuffer = '';
                     STATE = State.CLOSE1;
+                    emit(TokenTypes.tagName, tagBuffer, loc(locStart, pos));
+                    tagBuffer = '';
                 } else {
                     tagBuffer += c; // keep adding the text
                 }
@@ -190,8 +163,7 @@ export function tokenize(incoming: string): IToken[] {
             case State.INSIDE_TAG_TEXT:
                 if (c === '=') {
                     // account for space after name
-                    // push({type: TokenTypes.assignParam, content: tagBuffer.trim(), loc: loc(locStart + 1, pos)});
-                    currentParam.key = tagBuffer.trim();
+                    emit(TokenTypes.assignParam, tagBuffer.trim(), loc(locStart + 1, pos));
                     tagBuffer = '';
                     if (incoming.charAt(pos + 1) === '"') {
                         STATE = State.OPEN_PARAM;
@@ -201,8 +173,7 @@ export function tokenize(incoming: string): IToken[] {
                 } else {
                     if (c === " ") {
                         if (tagBuffer) {
-                            currentTag.params.push({value: tagBuffer.trim(), loc: loc(locStart + 1, pos)});
-                            // push({type: TokenTypes.param, content: tagBuffer.trim(), loc: loc(locStart + 1, pos)});
+                            emit(TokenTypes.param, tagBuffer.trim(), loc(locStart + 1, pos));
                             locStart = pos;
                             tagBuffer = '';
                         }
@@ -211,9 +182,7 @@ export function tokenize(incoming: string): IToken[] {
                         // check if there's anything lingering in the buffer
                         STATE = State.CLOSE1;
                         if (tagBuffer) {
-                            // console.log('adding', tagBuffer);
-                            currentTag.params.push({value: tagBuffer.trim(), loc: loc(locStart + 1, pos)});
-                            // push({type: TokenTypes.param, content: tagBuffer.trim(), loc: loc(locStart + 1, pos)});
+                            emit(TokenTypes.param, tagBuffer.trim(), loc(locStart + 1, pos));
                             tagBuffer = '';
                         }
                     } else {
@@ -237,16 +206,12 @@ export function tokenize(incoming: string): IToken[] {
                 if (c === ' ') {
                     if (tagBuffer) {
                         STATE = State.INSIDE_TAG_TEXT;
-                        push({type: TokenTypes.unquotedParam, content: tagBuffer.trim(), loc: loc(locStart + 1, pos)});
+                        emit(TokenTypes.unquotedParam, tagBuffer.trim(), loc(locStart + 1, pos));
                         tagBuffer = '';
                     }
                 } else if (c === '}')  {
                     STATE = State.CLOSE1;
-                    push({
-                        type: TokenTypes.unquotedParam,
-                        content: tagBuffer.trim(),
-                        loc: loc(locStart + 1, pos)
-                    });
+                    emit(TokenTypes.unquotedParam, tagBuffer.trim(), loc(locStart + 1, pos));
                     tagBuffer = '';
                 } else {
                     console.log('Adding', [c]);
@@ -255,10 +220,7 @@ export function tokenize(incoming: string): IToken[] {
                 break;
             case State.INSIDE_QUOTE_PARAM:
                 if (c === '"') {
-                    currentParam.value = tagBuffer;
-                    currentTag.params.push({value: currentParam.value, key: currentParam.key, loc: loc(locStart, pos)});
-                    currentParam = generateParam();
-                    // push({type: TokenTypes.quoteParam, content: tagBuffer, loc: loc(locStart, pos)});
+                    emit(TokenTypes.quoteParam, tagBuffer, loc(locStart, pos));
                     tagBuffer = '';
                     STATE = State.CLOSE_PARAM;
                 } else {
@@ -267,23 +229,15 @@ export function tokenize(incoming: string): IToken[] {
                 break;
             case State.CLOSE1:
                 if (c === "}") {
-                    // console.log(currentTag);
-                    if (currentTag.body.length === 0) { // not a block
-                        // console.log('here', currentTag);
-                        currentTag.loc.end = pos + 1;
-                        push({type: TokenTypes.mustache, params: currentTag.params, loc: currentTag.loc});
+                    STATE = State.TEXT;
+                    emit(TokenTypes.closeTag, '}}', loc(pos-1, pos+1));
+                    if (tagBuffer) {
+                        // push({type: NodeTypes.tag, tagBuffer, loc());
                     }
-                    // push({type: TokenTypes.closeTag, content: '}}', loc: loc(pos-1, pos+1)});
                     tagBuffer = '';
                     locStart = pos + 1;
-                    currentTag = undefined;
-                    STATE = State.TEXT;
                 }
                 break;
-        }
-// debug
-        if (emit) {
-            lastEmitPos = pos;
         }
 
         if (isNewline(c)) {
@@ -297,7 +251,7 @@ export function tokenize(incoming: string): IToken[] {
     }
 
     if (buffer !== '') {
-        push({type: TokenTypes.text, content: buffer, loc: loc(locStart, pos)});
+        emit(TokenTypes.text, buffer, loc(locStart, pos));
     }
 
     return stack;
