@@ -35,10 +35,11 @@ describe('ast parsing', function () {
     it.only('works with nested', function () {
         var sub = `<ul>
     {{#each posts}}
-    {{this.url name="shane"}} 
-    {{/each}}
+    <li><a href="{{this.url}}">{{this.label}}</a></li>
+     {{/each}}
 </ul>`;
-        var tokens = hb.tokenize(sub);
-        console.log(tokens.map(x => [x.loc.line, x.loc.column, x.content]));
+        var tokens     = hb.tokenize(sub);
+        var ast        = hb.parse(tokens);
+        // console.log(JSON.stringify(ast, null, 2));
     });
 });

@@ -30,13 +30,10 @@ export enum TokenTypes {
 export interface IToken {
     type: TokenTypes,
     content: string,
-    loc: {
-        start: number
-        end: number
-    }
+    loc: ILoc
 }
 
-interface ILoc {
+export interface ILoc {
     start: number;
     end: number;
     column: number;
@@ -61,17 +58,15 @@ export function tokenize(incoming: string): IToken[] {
     var len = incoming.length;
     var c : string;
 
-    var line      = 0;
-    var column    = 0;
-    var pos       = 0;
+    var line         = 0;
+    var column       = 0;
+    var pos          = 0;
     var canEmit      = true;
     var stack: Array<IToken> = [];
-    var tagBuffer = '';
+    var tagBuffer    = '';
     var STATE: State = State.TEXT;
     var locStart     = 0;
-    var lastEmitPos  = 0;
-    var stackIndex   = 0;
-    var buffer    = '';
+    var buffer       = '';
 
     const emit = (type: TokenTypes, content: string, loc: ILoc) => {
         stack.push({type, content, loc});
