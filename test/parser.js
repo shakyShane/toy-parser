@@ -32,11 +32,22 @@ describe('ast parsing', function () {
         // assert.equal(tokens[2].content, '#each');
         // assert.equal(tokens[3].content, '<ul>\n');
     });
-    it.only('works with nested', function () {
+    it('works with nested', function () {
         var sub = `<ul>
     {{#each posts filter=hl}}
     <li><a href="{{this.url|siteurl name="{{this.kittie}}">{{this.label}}</a></li>
     {{/each}}
+</ul>`;
+        var tokens     = hb.tokenize(sub);
+        var ast        = hb.parse(tokens);
+        // console.log(JSON.stringify(ast, null, 2));
+        console.log(ast[1]);
+    });
+    it.only('Supports RAW blocks out of the box', function () {
+        var sub = `<ul>
+    {{*hl}}
+    <li><a href="{{this.url|siteurl name="{{this.kittie}}">{{this.label}}</a></li>
+    {{/*hl}}
 </ul>`;
         var tokens     = hb.tokenize(sub);
         var ast        = hb.parse(tokens);
