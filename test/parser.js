@@ -34,12 +34,13 @@ describe('ast parsing', function () {
     });
     it.only('works with nested', function () {
         var sub = `<ul>
-    {{#each posts}}
-    <li><a href="{{this.url}}">{{this.label}}</a></li>
-     {{/each}}
+    {{#each posts filter=hl}}
+    <li><a href="{{this.url|siteurl name="{{this.kittie}}">{{this.label}}</a></li>
+    {{/each}}
 </ul>`;
         var tokens     = hb.tokenize(sub);
         var ast        = hb.parse(tokens);
         // console.log(JSON.stringify(ast, null, 2));
+        console.log(ast[1]);
     });
 });

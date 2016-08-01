@@ -1,6 +1,5 @@
 declare var require;
-const begins = /^[ \t]+\{\{|^\{\{/;
-const ends = /}}[ \t]+$|}}$/;
+const tagOnly = /^([ \t]+)?\{\{(.+?)}}([ \t]+)?$/;
 
 enum State {
     TEXT = 0,
@@ -50,7 +49,7 @@ export function tokenize(incoming: string): IToken[] {
     const noEmitIndexes = []; // lines that should never emit anything other that tags
 
     split.forEach((x, i) => {
-        if (begins.test(x) && ends.test(x)) {
+        if (tagOnly.test(x)) {
             noEmitIndexes.push(i);
         }
     });
@@ -209,7 +208,7 @@ export function tokenize(incoming: string): IToken[] {
                     emit(TokenTypes.unquotedParam, tagBuffer.trim(), loc(locStart + 1, pos));
                     tagBuffer = '';
                 } else {
-                    console.log('Adding', [c]);
+                    // console.log('Adding', [c]);
                     tagBuffer += c;
                 }
                 break;

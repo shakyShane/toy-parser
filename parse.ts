@@ -2,6 +2,9 @@ import {IToken, TokenTypes, ILoc} from "./tokenize";
 
 export enum ASTNodeTypes {
     Block = <any>'Block',
+    Param = <any>'Param',
+    QuotedParam = <any>'QuotedParam',
+    UnQuotedParam = <any>'UnQuotedParam',
     Text = <any>'Text',
     Lookup = <any>'Lookup'
 }
@@ -9,7 +12,8 @@ export enum ASTNodeTypes {
 export interface IParam {
     key?: string,
     value: string,
-    loc: ILoc
+    loc: ILoc,
+    locEnd?: ILoc
 }
 
 export interface ASTNode {
@@ -26,6 +30,7 @@ export interface BlockElement extends ASTNode {
 }
 
 const blockRegex = /^[#@]/;
+let upcomingParam;
 
 function tokensToAST (tokens: IToken[]): ASTNode[] {
 
@@ -57,9 +62,9 @@ function tokensToAST (tokens: IToken[]): ASTNode[] {
 
                 const blockElem = {
                     type:    ASTNodeTypes.Block,
-                    body:    [],
-                    params:  [],
                     tagName: token.content,
+                    params:  [],
+                    body:    [],
                     loc:     token.loc
                 };
 
@@ -82,8 +87,49 @@ function tokensToAST (tokens: IToken[]): ASTNode[] {
                     tagName: token.content,
                     loc:     token.loc
                 } as ASTNode;
-
+                
                 addElement(lookupElem);
+            }
+        }
+
+        if (token.type === TokenTypes.assignParam) {
+            upcomingParam = token;
+        }
+
+        if (token.type === TokenTypes.quoteParam) {
+            var parent = tagStack[tagStack.length-1];
+            if (parent && upcomingParam) {
+                parent.params.push({
+                    type: ASTNodeTypes.QuotedParam,
+                    key: upcomingParam.content,
+                    value: token.content,
+                    loc: upcomingParam.loc,
+                    locEnd: token.loc
+                })
+            }
+        }
+
+        if (token.type === TokenTypes.unquotedParam) {
+            var parent = tagStack[tagStack.length-1];
+            if (parent && upcomingParam) {
+                parent.params.push({
+                    type: ASTNodeTypes.UnQuotedParam,
+                    key: upcomingParam.content,
+                    value: token.content,
+                    loc: upcomingParam.loc,
+                    locEnd: token.loc
+                })
+            }
+        }
+
+        if (token.type === TokenTypes.param) {
+            var parent = tagStack[tagStack.length-1];
+            if (parent) {
+                parent.params.push({
+                    type: ASTNodeTypes.Param,
+                    value: token.content,
+                    loc: token.loc
+                });
             }
         }
     });
