@@ -10,15 +10,16 @@ export enum ASTNodeTypes {
 }
 
 export interface IParam {
-    key?: string,
-    value: string,
-    loc: ILoc,
+    type: ASTNodeTypes
+    key?: string
+    value: string
+    loc: ILoc
     locEnd?: ILoc
 }
 
 export interface ASTNode {
     content?: string
-    type: ASTNodeTypes,
+    type: ASTNodeTypes
     loc: ILoc
 }
 
