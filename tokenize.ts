@@ -3,6 +3,7 @@ const tagOnly = /^([ \t]+)?\{\{(.+?)}}([ \t]+)?$/;
 
 enum State {
     TEXT = 0,
+    RAWTEXT,
     OPEN1,
     INSIDE_TAG_NAME,
     INSIDE_PARAM,
@@ -17,6 +18,7 @@ enum State {
 
 export enum TokenTypes {
     text = <any>'text',
+    raw = <any>'raw',
     openTag = <any>'openTag',
     closeTag = <any>'closeTag',
     tagName = <any>'tagName',
@@ -66,6 +68,11 @@ export function tokenize(incoming: string): IToken[] {
     var STATE: State = State.TEXT;
     var locStart     = 0;
     var buffer       = '';
+    var rawTagName   = '';
+    var rawBuffer    = '';
+    var insideRaw    = false;
+    var rawExit = 0;
+    var rawBeginLine = 0;
 
     const emit = (type: TokenTypes, content: string, loc: ILoc) => {
         stack.push({type, content, loc});
@@ -78,6 +85,21 @@ export function tokenize(incoming: string): IToken[] {
         canEmit = !isTagOnlyLine(line);
 
         switch (STATE) {
+            case State.RAWTEXT:
+                if (canEmit) {
+                    if (line === rawBeginLine) {
+
+                    } else {
+                        rawBuffer += c;
+                    }
+                }
+                if (pos + 1 === rawExit) {
+                    emit(TokenTypes.text, rawBuffer, loc(locStart, pos));
+                    STATE = State.TEXT;
+                    insideRaw = false;
+                    rawExit = 0;
+                }
+                break;
             case State.TEXT:
                 if (c === '\\') {
                     if (incoming.substring(pos + 1, pos + 3) === '{{') {
@@ -148,6 +170,14 @@ export function tokenize(incoming: string): IToken[] {
                     STATE = State.INSIDE_TAG_TEXT;
                 } else if (c === '}') { // name ended 2
                     STATE = State.CLOSE1;
+                    if (tagBuffer.charAt(0) === '*') {
+                        const match = incoming.slice(pos).match(new RegExp(`\{\{\/${tagBuffer.slice(1)}}`));
+                        if (match) {
+                            rawExit = match.index + pos;
+                            insideRaw = true;
+                            rawBeginLine = line;
+                        }
+                    }
                     emit(TokenTypes.tagName, tagBuffer, loc(locStart, pos));
                     tagBuffer = '';
                 } else {
@@ -223,7 +253,11 @@ export function tokenize(incoming: string): IToken[] {
                 break;
             case State.CLOSE1:
                 if (c === "}") {
-                    STATE = State.TEXT;
+                    if (insideRaw) {
+                        STATE = State.RAWTEXT;
+                    } else {
+                        STATE = State.TEXT;
+                    }
                     emit(TokenTypes.closeTag, '}}', loc(pos-1, pos+1));
                     if (tagBuffer) {
                         // push({type: NodeTypes.tag, tagBuffer, loc());

@@ -2,6 +2,7 @@ import {IToken, TokenTypes, ILoc} from "./tokenize";
 
 export enum ASTNodeTypes {
     Block = <any>'Block',
+    RawBlock = <any>'RawBlock',
     Param = <any>'Param',
     QuotedParam = <any>'QuotedParam',
     UnQuotedParam = <any>'UnQuotedParam',
@@ -30,7 +31,7 @@ export interface BlockElement extends ASTNode {
     locEnd?: ILoc
 }
 
-const blockRegex = /^[#@]/;
+const blockRegex = /^[#@*]/;
 let upcomingParam;
 
 function tokensToAST (tokens: IToken[]): ASTNode[] {
@@ -61,8 +62,15 @@ function tokensToAST (tokens: IToken[]): ASTNode[] {
             // block
             if (blockRegex.test(firstChar)) {
 
+                const type = (function () {
+                    if (firstChar === '*') {
+                        return ASTNodeTypes.RawBlock;
+                    }
+                    return ASTNodeTypes.Block;
+                })();
+                
                 const blockElem = {
-                    type:    ASTNodeTypes.Block,
+                    type,
                     tagName: token.content,
                     params:  [],
                     body:    [],

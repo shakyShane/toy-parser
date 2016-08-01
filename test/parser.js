@@ -45,13 +45,15 @@ describe('ast parsing', function () {
     });
     it.only('Supports RAW blocks out of the box', function () {
         var sub = `<ul>
-    {{*hl}}
-    <li><a href="{{this.url|siteurl name="{{this.kittie}}">{{this.label}}</a></li>
-    {{/*hl}}
+    {{*hl lang="js"}}
+hewe {{this}}
+    {{/hl}}
 </ul>`;
         var tokens     = hb.tokenize(sub);
+        // console.log(tokens);
         var ast        = hb.parse(tokens);
+        console.log(ast);
         // console.log(JSON.stringify(ast, null, 2));
-        console.log(ast[1]);
+        // console.log(ast[1]);
     });
 });
